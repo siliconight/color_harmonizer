@@ -1,0 +1,15 @@
+; Engine configuration file.
+; Demo project for the Color Harmonizer (60/30/10) add-on.
+
+config_version=5
+
+[application]
+
+config/name="Color Harmonizer Demo"
+run/main_scene="res://demo/demo.tscn"
+config/features=PackedStringArray("4.7")
+config/icon="res://icon.svg"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/color_harmonizer/plugin.cfg")

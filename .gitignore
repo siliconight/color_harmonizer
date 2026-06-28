@@ -1,0 +1,17 @@
+# Godot 4 editor cache and imports
+.godot/
+/android/
+export_presets.cfg
+*.translation
+
+# Mono / C# (unused, but harmless to keep)
+.mono/
+data_*/
+mono_crash.*.json
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Color Harmonizer batch output
+color_reports/

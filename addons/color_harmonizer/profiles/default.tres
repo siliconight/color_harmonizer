@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ColorProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/color_harmonizer/color_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+target_dominant = 0.6
+target_secondary = 0.3
+target_accent = 0.1
+neutral_chroma_max = 0.04
+neutral_value_min = 0.08
+neutral_value_max = 0.96
+use_salience = true
+center_bias = 0.5
+contrast_bias = 0.5
+luminance_bias = 0.2
+harmony_rule = 0
+accent_min_contrast = 0.08
+w_proportion = 0.5
+w_accent = 0.25
+w_harmony = 0.25
+clusters = 6
+max_dominant_desat = 0.6
+max_accent_boost = 0.6
+max_secondary_shift = 0.4
+grade_strength = 0.5
+w_value_contrast = 0.2
+w_saturation_focus = 0.15

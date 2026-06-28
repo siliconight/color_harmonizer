@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="GradeParams" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/color_harmonizer/lut/grade_params.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+dominant_hue = -2.0
+secondary_hue = 1.5
+accent_hue = 0.6
+secondary_target_hue = 0.6
+dominant_desat = 0.35
+accent_boost = 0.5
+secondary_shift = 0.2
+hue_falloff = 0.8
+kelvin = 5200.0
+tint = 0.0
+wb_strength = 1.0
+path_to_white = 0.3
+path_to_white_start = 0.7
+split_tone_amount = 0.0
+split_balance = 0.5
+shadow_tint = Color(0.4, 0.52, 0.85, 1)
+highlight_tint = Color(1.0, 0.85, 0.6, 1)
+strength = 0.5

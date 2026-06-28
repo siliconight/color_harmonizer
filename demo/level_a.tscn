@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[node name="LevelA" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Dominant" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.18, 0.27, 0.32, 1)
+
+[node name="Secondary" type="ColorRect" parent="."]
+anchor_right = 0.3
+anchor_bottom = 1.0
+color = Color(0.44, 0.4, 0.3, 1)
+
+[node name="Accent" type="ColorRect" parent="."]
+anchor_left = 0.76
+anchor_right = 0.86
+anchor_bottom = 1.0
+color = Color(0.95, 0.42, 0.1, 1)

@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[node name="Demo" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Dominant" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.16, 0.2, 0.29, 1)
+
+[node name="Secondary" type="ColorRect" parent="."]
+anchor_right = 0.3
+anchor_bottom = 1.0
+color = Color(0.5, 0.46, 0.38, 1)
+
+[node name="Accent" type="ColorRect" parent="."]
+anchor_left = 0.74
+anchor_right = 0.84
+anchor_bottom = 1.0
+color = Color(0.96, 0.45, 0.12, 1)
+
+[node name="Hint" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 14.0
+offset_right = 760.0
+offset_bottom = 40.0
+text = "Color Harmonizer demo — watch the 'Color 60/30/10' dock while this runs."
