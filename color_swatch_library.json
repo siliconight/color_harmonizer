@@ -1,0 +1,35 @@
+{
+	"colors": [
+		{
+			"category": "liked",
+			"hex": "C1442E",
+			"name": "#C1442E"
+		},
+		{
+			"category": "liked",
+			"hex": "F8D5CE",
+			"name": "#F8D5CE"
+		},
+		{
+			"category": "neutral",
+			"hex": "070EC0",
+			"name": "#070EC0"
+		},
+		{
+			"category": "neutral",
+			"hex": "D6D6D6",
+			"name": "zxcvzxc"
+		},
+		{
+			"category": "liked",
+			"hex": "0059C1",
+			"name": "#0059C1"
+		},
+		{
+			"category": "disliked",
+			"hex": "4B4D51",
+			"name": "#4B4D51"
+		}
+	],
+	"palettes": []
+}

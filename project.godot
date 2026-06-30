@@ -1,5 +1,10 @@
 ; Engine configuration file.
-; Demo project for the Color Harmonizer (60/30/10) add-on.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -7,9 +12,13 @@ config_version=5
 
 config/name="Color Harmonizer Demo"
 run/main_scene="res://demo/demo.tscn"
-config/features=PackedStringArray("4.7")
+config/features=PackedStringArray("4.6")
 config/icon="res://icon.svg"
+
+[autoload]
+
+ColorHarmonizerAnalyzer="*uid://cwnii1wvjr4b7"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/color_harmonizer/plugin.cfg")
+enabled=PackedStringArray("res://addons/color_harmonizer/plugin.cfg", "res://addons/color_swatch/plugin.cfg")

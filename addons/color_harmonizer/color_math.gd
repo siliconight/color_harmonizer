@@ -1,8 +1,11 @@
 extends RefCounted
 ## Pure, stateless color analysis. No engine side effects so it can be unit-tested.
 ##
-## Pipeline: pixels -> OkLab -> drop neutrals -> salience-weighted k-means
-## -> roles -> score (proportion + accent contrast + harmony) -> recommend a grade.
+## Pipeline: pixels -> OkLab -> split neutral / chromatic -> salience-weighted
+## k-means -> zones (+ neutral base) -> roles -> score (proportion + accent
+## contrast + harmony) -> recommend a grade. With neutral_as_base (default on)
+## the neutral mass is the calm base most scenes rest on and counts toward the
+## 60/30/10; turn it off for the legacy chromatic-only reading.
 ## Everything tunable lives in the ColorProfile passed in.
 
 const HUE_30 := 1.0 / 12.0   # 30 degrees in [0,1] hue space
@@ -15,7 +18,7 @@ static func _srgb_to_linear(c: float) -> float:
 
 
 static func _cbrt(x: float) -> float:
-	return pow(max(x, 0.0), 1.0 / 3.0)
+	return pow(maxf(x, 0.0), 1.0 / 3.0)
 
 
 # --- sRGB Color -> OkLab (Vector3: L, a, b) ---
@@ -46,7 +49,7 @@ static func _hue(rgb: Array) -> float:
 
 static func _hue_dist(a: float, b: float) -> float:
 	var d: float = abs(a - b)
-	return min(d, 1.0 - d)
+	return minf(d, 1.0 - d)
 
 
 # --- salience-weighted k-means (++ seeding, weighted Lloyd) ---
@@ -133,6 +136,17 @@ static func _harmony_score(dom_h: float, sec_h: float, acc_h: float, rule: int) 
 	return clampf(1.0 - 0.5 * (sec_err + acc_err), 0.0, 1.0)
 
 
+## Two-color harmony: how well the hue gap matches the rule's primary interval.
+## Used when the dominant is the neutral base, so harmony rides on the two lead
+## chromatic colors (secondary + accent).
+static func _harmony_pair(h1: float, h2: float, rule: int) -> float:
+	if rule == ColorProfile.Harmony.ANY:
+		return 1.0
+	var ideal := _harmony_offsets(rule)
+	var off := _hue_dist(h1, h2)
+	return clampf(1.0 - absf(off - ideal.x) / 0.5, 0.0, 1.0)
+
+
 static func _salience(px: float, py: float, lum: float, contrast: float, p: ColorProfile) -> float:
 	if not p.use_salience:
 		return 1.0
@@ -142,9 +156,9 @@ static func _salience(px: float, py: float, lum: float, contrast: float, p: Colo
 	var cy := py - 0.5
 	var dist := sqrt(cx * cx + cy * cy) / 0.707
 	var center_term := clampf(1.0 - dist, 0.0, 1.0)
-	sal *= lerp(1.0, center_term, p.center_bias)
-	sal *= lerp(1.0, clampf(contrast, 0.0, 1.0), p.contrast_bias)
-	sal *= lerp(1.0, clampf(lum, 0.0, 1.0), p.luminance_bias)
+	sal *= lerpf(1.0, center_term, p.center_bias)
+	sal *= lerpf(1.0, clampf(contrast, 0.0, 1.0), p.contrast_bias)
+	sal *= lerpf(1.0, clampf(lum, 0.0, 1.0), p.luminance_bias)
 	return maxf(sal, 0.0001)
 
 
@@ -357,6 +371,8 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 	var rgb_pts: Array = []
 	var weights := PackedFloat32Array()
 	var neutral_w := 0.0
+	var neutral_lab := Vector3.ZERO
+	var neutral_rgb := Vector3.ZERO
 	var chroma_w := 0.0
 	var all_w := 0.0
 	var hi_chroma_w := 0.0
@@ -380,6 +396,8 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 				or lab.x < p.neutral_value_min or lab.x > p.neutral_value_max
 			if is_neutral:
 				neutral_w += sal
+				neutral_lab += lab * sal
+				neutral_rgb += rgb_all[idx] * sal
 			else:
 				pts.append(lab)
 				rgb_pts.append(rgb_all[idx])
@@ -396,12 +414,13 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 	var sat_target := maxf(p.target_hi_chroma_frac, 0.001)
 	var saturation_focus_score := 0.0
 	if hi_frac <= sat_target:
-		saturation_focus_score = lerp(0.6, 1.0, hi_frac / sat_target)
+		saturation_focus_score = lerpf(0.6, 1.0, hi_frac / sat_target)
 	else:
 		saturation_focus_score = clampf(1.0 - (hi_frac - sat_target) / 0.4, 0.0, 1.0)
 
 	var total_w := neutral_w + chroma_w
 	var neutral_ratio := neutral_w / total_w if total_w > 0.0 else 1.0
+	var prop_denom: float = total_w if p.neutral_as_base else chroma_w
 	if pts.size() < 3 or chroma_w <= 0.0:
 		return _degenerate(neutral_ratio, p)
 
@@ -431,7 +450,7 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 		clusters.append({
 			"oklab": oklab,
 			"rgb": [avg_rgb.x, avg_rgb.y, avg_rgb.z],
-			"weight": wsum[c] / chroma_w,        # share of the chromatic content
+			"weight": wsum[c] / prop_denom,       # share of the frame (chromatic only when legacy)
 			"chroma": oklab_chroma(oklab),
 			"spread": sqrt(sq_wsum[c] / wsum[c]),  # RMS perceptual radius = nuance/gradient
 		})
@@ -442,6 +461,17 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 	# that may span a lightness gradient (lighting), so value ramps on one
 	# material stay a single zone instead of fracturing into many "colors".
 	var zones := _merge_zones(clusters, p.nuance_tolerance, p.nuance_lightness_weight)
+	if p.neutral_as_base and neutral_w > 0.0 and total_w > 0.0:
+		var nlab: Vector3 = neutral_lab / neutral_w
+		var nrgb: Vector3 = neutral_rgb / neutral_w
+		zones.append({
+			"oklab": nlab,
+			"rgb": [nrgb.x, nrgb.y, nrgb.z],
+			"weight": neutral_w / total_w,
+			"chroma": oklab_chroma(nlab),
+			"spread": 0.0,
+			"neutral": true,
+		})
 	zones.sort_custom(func(a, b): return a["weight"] > b["weight"])
 	var zone_count := zones.size()
 	var nuance := 0.0
@@ -461,7 +491,7 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 			accent = cl
 	var secondary: Dictionary = dominant
 	for cl in zones:
-		if cl == dominant or cl == accent:
+		if cl == dominant or cl == accent or cl.get("neutral", false):
 			continue
 		secondary = cl
 		break
@@ -560,7 +590,7 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 		pw = 1.0
 	var pop_contrast := (p.pop_value_weight * pop_value + p.pop_chroma_weight * pop_chroma \
 		+ p.pop_temp_weight * pop_temp) / pw
-	var accent_pop := pop_contrast * lerp(0.5, 1.0, pop_isolation)
+	var accent_pop := pop_contrast * lerpf(0.5, 1.0, pop_isolation)
 
 	var accent_pop_axis := "value"
 	var weakest := pop_value
@@ -585,7 +615,13 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 	var dom_hue := _hue(dominant["rgb"])
 	var sec_hue := _hue(secondary["rgb"])
 	var acc_hue := _hue(accent["rgb"])
-	var harmony := _harmony_score(dom_hue, sec_hue, acc_hue, p.harmony_rule)
+	# Harmony is about the saturated colors. If the dominant is the neutral base,
+	# anchor on the two lead chromatic colors instead of the (hueless) neutral.
+	var harmony := 0.0
+	if dominant.get("neutral", false):
+		harmony = _harmony_pair(sec_hue, acc_hue, p.harmony_rule)
+	else:
+		harmony = _harmony_score(dom_hue, sec_hue, acc_hue, p.harmony_rule)
 
 	var sw_total := p.w_proportion + p.w_accent + p.w_harmony + p.w_value_contrast + p.w_saturation_focus
 	if sw_total <= 0.0:
@@ -639,9 +675,9 @@ static func analyze(image: Image, profile: ColorProfile) -> Dictionary:
 				"message": "Accent is %d%% of the frame — too large to read as an accent." % int(round(accent_coverage * 100.0))})
 
 	return {
-		"dominant": {"rgb": dominant["rgb"], "weight": dw, "chroma": dominant["chroma"], "hue": dom_hue, "spread": dominant["spread"]},
-		"secondary": {"rgb": secondary["rgb"], "weight": sw, "chroma": secondary["chroma"], "hue": sec_hue, "spread": secondary["spread"]},
-		"accent": {"rgb": accent["rgb"], "weight": aw, "chroma": accent["chroma"], "hue": acc_hue, "spread": accent["spread"]},
+		"dominant": {"rgb": dominant["rgb"], "weight": dw, "chroma": dominant["chroma"], "hue": dom_hue, "spread": dominant["spread"], "neutral": dominant.get("neutral", false)},
+		"secondary": {"rgb": secondary["rgb"], "weight": sw, "chroma": secondary["chroma"], "hue": sec_hue, "spread": secondary["spread"], "neutral": secondary.get("neutral", false)},
+		"accent": {"rgb": accent["rgb"], "weight": aw, "chroma": accent["chroma"], "hue": acc_hue, "spread": accent["spread"], "neutral": accent.get("neutral", false)},
 		"neutral_ratio": neutral_ratio,
 		"score": score,
 		"proportion_score": prop_score,

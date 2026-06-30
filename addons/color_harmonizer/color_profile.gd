@@ -19,6 +19,11 @@ enum Harmony { ANY, ANALOGOUS, COMPLEMENTARY, TRIADIC, SPLIT_COMPLEMENTARY }
 @export_range(0.0, 1.0) var neutral_value_min := 0.08
 ## Pixels brighter than this are treated as neutral highlight.
 @export_range(0.0, 1.0) var neutral_value_max := 0.96
+## Count the neutral mass as part of the 60/30/10. When on, neutrals compete for
+## the dominant role (the calm base most scenes rest on) and proportions are
+## measured over the WHOLE frame. When off (legacy), neutrals are excluded from
+## the color story and proportions are measured over the saturated colors only.
+@export var neutral_as_base := true
 
 @export_group("Salience weighting")
 ## Weight pixels by where the eye actually looks, not raw area.
